@@ -57,8 +57,12 @@ class Setn_Settings {
 		}
 
 		// Notices for General (multisite toggle) save result.
-		if ( isset( $_GET['setn_ok_multisite'] ) && '1' === $_GET['setn_ok_multisite'] && 'general' === $active_tab ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Multisite setting updated. Go to Tools → Network Setup to complete the conversion.', 'settinator' ) . '</p></div>';
+		if ( isset( $_GET['setn_ok_multisite'] ) && 'general' === $active_tab ) {
+			if ( '1' === $_GET['setn_ok_multisite'] ) {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Multisite enabled. Redirecting to Network Admin.', 'settinator' ) . '</p></div>';
+			} else {
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Reverted to single-site. wp-config.php and .htaccess have been restored.', 'settinator' ) . '</p></div>';
+			}
 		}
 		if ( isset( $_GET['setn_err_multisite'] ) && 'general' === $active_tab ) {
 			$err = sanitize_key( $_GET['setn_err_multisite'] );
@@ -142,37 +146,37 @@ class Setn_Settings {
 			.setn-toggle-wrap input:checked + .toggle::after { left: 26px; }
 			.setn-toggle-wrap input:disabled + .toggle { opacity: 0.6; cursor: not-allowed; }
 		</style>
-		<?php if ( $is_multisite ) : ?>
-			<p class="description"><?php esc_html_e( 'This site is already running as a multisite network.', 'settinator' ); ?></p>
-			<p><a href="<?php echo esc_url( $network_setup_url ); ?>" class="button"><?php esc_html_e( 'Network Admin', 'settinator' ); ?></a></p>
-		<?php else : ?>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=general' ) ); ?>" id="setn-general-form">
-				<?php wp_nonce_field( self::GENERAL_NONCE_ACTION, 'setn_general_nonce' ); ?>
-				<div class="setn-toggle-wrap" style="margin-bottom: 16px;">
-					<label class="setn-toggle-label" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-						<input type="checkbox" name="setn_multisite" value="1" <?php checked( $multisite_allowed ); ?> <?php echo $wpconfig_writable ? '' : 'disabled'; ?>>
-						<span class="toggle" aria-hidden="true"></span>
-						<span><?php esc_html_e( 'Enable multisite (WP_ALLOW_MULTISITE)', 'settinator' ); ?></span>
-					</label>
-				</div>
-				<?php if ( ! $wpconfig_writable ) : ?>
-					<p class="description" style="color: #b32d2e;"><?php esc_html_e( 'wp-config.php is not writable. Make it writable to change this setting.', 'settinator' ); ?></p>
-				<?php else : ?>
-					<p class="description"><?php esc_html_e( 'When enabled, Settinator will add all multisite constants to wp-config.php, update .htaccess, and redirect you to complete the conversion. The site will become multisite (subdirectory install).', 'settinator' ); ?></p>
-					<p>
-						<button type="submit" class="button button-primary"><?php esc_html_e( 'Save changes', 'settinator' ); ?></button>
-					</p>
-				<?php endif; ?>
-			</form>
-			<?php if ( $multisite_allowed && ! $is_multisite ) : ?>
-				<div class="notice notice-warning inline" style="margin-top: 24px; padding: 16px 20px; display: block;">
-					<p style="margin: 0 0 12px 0; font-weight: 600;"><?php esc_html_e( 'The site is not multisite yet.', 'settinator' ); ?></p>
-					<p style="margin: 0 0 12px 0;"><?php esc_html_e( 'WP_ALLOW_MULTISITE is enabled in wp-config.php, but you must complete the Network Setup so that WordPress adds the rest of the configuration and converts this site to multisite.', 'settinator' ); ?></p>
-					<p style="margin: 0;">
-						<a href="<?php echo esc_url( $network_setup_new ); ?>" class="button button-primary button-hero"><?php esc_html_e( 'Go to Network Setup (Tools → Network Setup)', 'settinator' ); ?></a>
-					</p>
-				</div>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=general' ) ); ?>" id="setn-general-form">
+			<?php wp_nonce_field( self::GENERAL_NONCE_ACTION, 'setn_general_nonce' ); ?>
+			<div class="setn-toggle-wrap" style="margin-bottom: 16px;">
+				<label class="setn-toggle-label" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+					<input type="checkbox" name="setn_multisite" value="1" <?php checked( $multisite_allowed || $is_multisite ); ?> <?php echo $wpconfig_writable ? '' : 'disabled'; ?>>
+					<span class="toggle" aria-hidden="true"></span>
+					<span><?php esc_html_e( 'Enable multisite (WP_ALLOW_MULTISITE)', 'settinator' ); ?></span>
+				</label>
+			</div>
+			<?php if ( $is_multisite ) : ?>
+				<p class="description"><?php esc_html_e( 'Multisite is active. Uncheck the toggle and save to revert to single-site (wp-config and .htaccess will be restored).', 'settinator' ); ?></p>
+				<p><a href="<?php echo esc_url( $network_setup_url ); ?>" class="button"><?php esc_html_e( 'Network Admin', 'settinator' ); ?></a></p>
+			<?php elseif ( ! $wpconfig_writable ) : ?>
+				<p class="description" style="color: #b32d2e;"><?php esc_html_e( 'wp-config.php is not writable. Make it writable to change this setting.', 'settinator' ); ?></p>
+			<?php else : ?>
+				<p class="description"><?php esc_html_e( 'When enabled, Settinator will add all multisite constants to wp-config.php, update .htaccess, and create the network. The site will become multisite (subdirectory install).', 'settinator' ); ?></p>
 			<?php endif; ?>
+			<?php if ( $wpconfig_writable ) : ?>
+				<p>
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save changes', 'settinator' ); ?></button>
+				</p>
+			<?php endif; ?>
+		</form>
+		<?php if ( $multisite_allowed && ! $is_multisite ) : ?>
+			<div class="notice notice-warning inline" style="margin-top: 24px; padding: 16px 20px; display: block;">
+				<p style="margin: 0 0 12px 0; font-weight: 600;"><?php esc_html_e( 'The site is not multisite yet.', 'settinator' ); ?></p>
+				<p style="margin: 0 0 12px 0;"><?php esc_html_e( 'WP_ALLOW_MULTISITE is enabled in wp-config.php, but you must complete the Network Setup so that WordPress adds the rest of the configuration and converts this site to multisite.', 'settinator' ); ?></p>
+				<p style="margin: 0;">
+					<a href="<?php echo esc_url( $network_setup_new ); ?>" class="button button-primary button-hero"><?php esc_html_e( 'Go to Network Setup (Tools → Network Setup)', 'settinator' ); ?></a>
+				</p>
+			</div>
 		<?php endif; ?>
 		<?php
 	}

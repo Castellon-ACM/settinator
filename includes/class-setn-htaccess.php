@@ -128,6 +128,40 @@ class Setn_Htaccess {
 	}
 
 	/**
+	 * Replace Multisite block with standard WordPress (single-site) rewrite rules.
+	 *
+	 * @return bool True on success, false if not writable or validation fails.
+	 */
+	public static function restore_single_site_rules() {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$single_block = "\n# BEGIN WordPress\n"
+			. "<IfModule mod_rewrite.c>\n"
+			. "RewriteEngine On\n"
+			. "RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]\n"
+			. "RewriteBase /\n"
+			. "RewriteRule ^index\\.php$ - [L]\n"
+			. "RewriteCond %{REQUEST_FILENAME} -f [OR]\n"
+			. "RewriteCond %{REQUEST_FILENAME} -d\n"
+			. "RewriteRule ^ - [L]\n"
+			. "RewriteRule . index.php [L]\n"
+			. "</IfModule>\n"
+			. "# END WordPress\n";
+		if ( preg_match( '/# BEGIN Multisite\b.*?# END Multisite\b/s', $content ) ) {
+			$content = preg_replace( '/# BEGIN Multisite\b.*?# END Multisite\b/s', trim( $single_block ), $content );
+		} else {
+			return true;
+		}
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		return false !== $result;
+	}
+
+	/**
 	 * Validate .htaccess syntax (balanced directives, invalid patterns, no null bytes).
 	 *
 	 * @param string $content Content to validate.

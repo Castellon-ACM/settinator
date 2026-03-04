@@ -131,7 +131,10 @@ function setn_maybe_save_general() {
 		);
 		exit;
 	}
-	$ok = Setn_Wpconfig::set_multisite_allowed( false );
+	$ok = Setn_Wpconfig::disable_multisite_full();
+	if ( $ok && Setn_Htaccess::is_writable() ) {
+		Setn_Htaccess::restore_single_site_rules();
+	}
 	if ( $ok ) {
 		wp_safe_redirect(
 			add_query_arg(

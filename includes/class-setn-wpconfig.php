@@ -247,6 +247,39 @@ class Setn_Wpconfig {
 	}
 
 	/**
+	 * Remove all multisite constants from wp-config.php to revert to single-site.
+	 *
+	 * @return bool True on success, false on failure or not writable.
+	 */
+	public static function disable_multisite_full() {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$constants = array(
+			'WP_ALLOW_MULTISITE',
+			'MULTISITE',
+			'SUBDOMAIN_INSTALL',
+			'DOMAIN_CURRENT_SITE',
+			'PATH_CURRENT_SITE',
+			'SITE_ID_CURRENT_SITE',
+			'BLOG_ID_CURRENT_SITE',
+		);
+		foreach ( $constants as $const ) {
+			$content = preg_replace( '/\s*define\s*\(\s*[\'" ]' . preg_quote( $const, '/' ) . '[\'" ]\s*,\s*[^;]+;\s*\n?/i', "\n", $content );
+		}
+		$content = preg_replace( '/\n{3,}/', "\n\n", $content );
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		if ( false !== $result && function_exists( 'opcache_invalidate' ) ) {
+			opcache_invalidate( self::get_path(), true );
+		}
+		return false !== $result;
+	}
+
+	/**
 	 * Save wp-config.php content. Called on form submit.
 	 *
 	 * @return void
