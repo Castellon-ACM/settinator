@@ -53,6 +53,20 @@ class Setn_Settings {
 	}
 
 	/**
+	 * Get last modified time of .htaccess file (Unix timestamp, or null if not exist/unreadable).
+	 *
+	 * @return int|null
+	 */
+	public static function get_htaccess_last_modified() {
+		$path = self::get_htaccess_path();
+		if ( ! file_exists( $path ) ) {
+			return null;
+		}
+		$mtime = filemtime( $path );
+		return false !== $mtime ? $mtime : null;
+	}
+
+	/**
 	 * Check if .htaccess file is writable (or parent dir is writable if file does not exist).
 	 *
 	 * @return bool
@@ -262,14 +276,26 @@ class Setn_Settings {
 	 * @return void
 	 */
 	protected static function render_htaccess_tab() {
-		$path     = self::get_htaccess_path();
-		$content  = self::get_htaccess_content();
-		$writable = self::is_htaccess_writable();
+		$path       = self::get_htaccess_path();
+		$content    = self::get_htaccess_content();
+		$writable   = self::is_htaccess_writable();
+		$last_mtime = self::get_htaccess_last_modified();
 		?>
 		<p class="description">
 			<?php esc_html_e( 'Aquí puedes ver y editar el archivo .htaccess de tu sitio. Está en la raíz de WordPress:', 'settinator' ); ?>
 			<code><?php echo esc_html( $path ); ?></code>
 		</p>
+		<?php if ( null !== $last_mtime ) : ?>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: date and time of last file modification */
+				esc_html__( 'Última modificación del archivo: %s', 'settinator' ),
+				esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_mtime ) )
+			);
+			?>
+		</p>
+		<?php endif; ?>
 		<?php if ( ! $writable ) : ?>
 			<div class="notice notice-warning inline">
 				<p><?php esc_html_e( 'El archivo no tiene permisos de escritura. No podrás guardar cambios hasta que ajustes los permisos.', 'settinator' ); ?></p>
