@@ -41,6 +41,7 @@ require_once SETN_PLUGIN_PATH . 'includes/class-setn-settings.php';
 
 add_action( 'admin_menu', 'setn_add_settings_page' );
 add_action( 'admin_init', 'setn_maybe_save_htaccess' );
+add_action( 'admin_init', 'setn_maybe_save_wpconfig' );
 
 /**
  * Process .htaccess form submit before rendering the page.
@@ -55,6 +56,21 @@ function setn_maybe_save_htaccess() {
 		return;
 	}
 	Setn_Settings::save_htaccess();
+}
+
+/**
+ * Process wp-config.php form submit before rendering the page.
+ *
+ * @return void
+ */
+function setn_maybe_save_wpconfig() {
+	if ( ! isset( $_POST['setn_wpconfig_nonce'] ) || empty( $_POST['setn_wpconfig_nonce'] ) ) {
+		return;
+	}
+	if ( ! isset( $_GET['page'] ) || 'settinator' !== $_GET['page'] ) {
+		return;
+	}
+	Setn_Settings::save_wpconfig();
 }
 
 /**

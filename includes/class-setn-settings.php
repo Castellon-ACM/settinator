@@ -30,6 +30,13 @@ class Setn_Settings {
 	const HTACCESS_NONCE_ACTION = 'setn_save_htaccess';
 
 	/**
+	 * Nonce action for wp-config form.
+	 *
+	 * @var string
+	 */
+	const WPCONFIG_NONCE_ACTION = 'setn_save_wpconfig';
+
+	/**
 	 * Get the path to the .htaccess file (WordPress root).
 	 *
 	 * @return string
@@ -77,6 +84,185 @@ class Setn_Settings {
 			return is_writable( $path );
 		}
 		return is_writable( ABSPATH );
+	}
+
+	/**
+	 * Get the path to the wp-config.php file (WordPress root).
+	 *
+	 * @return string
+	 */
+	public static function get_wpconfig_path() {
+		return ABSPATH . 'wp-config.php';
+	}
+
+	/**
+	 * Read wp-config.php content. Returns empty string if file does not exist or is unreadable.
+	 *
+	 * @return string
+	 */
+	public static function get_wpconfig_content() {
+		$path = self::get_wpconfig_path();
+		if ( ! file_exists( $path ) ) {
+			return '';
+		}
+		$content = file_get_contents( $path );
+		return false !== $content ? $content : '';
+	}
+
+	/**
+	 * Get last modified time of wp-config.php (Unix timestamp, or null if not exist/unreadable).
+	 *
+	 * @return int|null
+	 */
+	public static function get_wpconfig_last_modified() {
+		$path = self::get_wpconfig_path();
+		if ( ! file_exists( $path ) ) {
+			return null;
+		}
+		$mtime = filemtime( $path );
+		return false !== $mtime ? $mtime : null;
+	}
+
+	/**
+	 * Check if wp-config.php is writable.
+	 *
+	 * @return bool
+	 */
+	public static function is_wpconfig_writable() {
+		$path = self::get_wpconfig_path();
+		return file_exists( $path ) && is_writable( $path );
+	}
+
+	/**
+	 * Validate wp-config.php PHP syntax (no null bytes, valid PHP).
+	 *
+	 * @param string $content Content to validate.
+	 * @return bool True if syntax appears valid, false otherwise.
+	 */
+	public static function validate_wpconfig_syntax( $content ) {
+		if ( false !== strpos( $content, "\0" ) ) {
+			return false;
+		}
+		if ( ! function_exists( 'exec' ) ) {
+			return self::validate_wpconfig_syntax_basic( $content );
+		}
+		$tmp = wp_tempnam( 'wpconfig-' );
+		if ( ! $tmp ) {
+			return self::validate_wpconfig_syntax_basic( $content );
+		}
+		$written = file_put_contents( $tmp, $content, LOCK_EX );
+		if ( false === $written ) {
+			@unlink( $tmp );
+			return false;
+		}
+		$out = array();
+		$ret = -1;
+		@exec( 'php -l ' . escapeshellarg( $tmp ) . ' 2>&1', $out, $ret );
+		@unlink( $tmp );
+		if ( 0 === $ret ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Basic wp-config validation when php -l is not available (balanced braces, has PHP open tag).
+	 *
+	 * @param string $content Content to validate.
+	 * @return bool True if basic checks pass, false otherwise.
+	 */
+	protected static function validate_wpconfig_syntax_basic( $content ) {
+		if ( false === strpos( $content, '<?php' ) && false === strpos( $content, '<?' ) ) {
+			return false;
+		}
+		$stack = array();
+		$pairs = array( '{' => '}', '[' => ']', '(' => ')' );
+		$close = array_flip( $pairs );
+		$len   = strlen( $content );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$c = $content[ $i ];
+			if ( isset( $pairs[ $c ] ) ) {
+				$stack[] = $pairs[ $c ];
+			} elseif ( isset( $close[ $c ] ) ) {
+				if ( empty( $stack ) || array_pop( $stack ) !== $c ) {
+					return false;
+				}
+			}
+		}
+		return empty( $stack );
+	}
+
+	/**
+	 * Save wp-config.php content. Called on form submit.
+	 *
+	 * @return void
+	 */
+	public static function save_wpconfig() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! isset( $_POST['setn_wpconfig_nonce'] ) ||
+			! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['setn_wpconfig_nonce'] ) ), self::WPCONFIG_NONCE_ACTION ) ) {
+			return;
+		}
+		$content = isset( $_POST['setn_wpconfig_content'] ) ? wp_unslash( $_POST['setn_wpconfig_content'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$path   = self::get_wpconfig_path();
+
+		if ( ! self::validate_wpconfig_syntax( $content ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'     => self::PAGE_SLUG,
+						'tab'      => 'wpconfig',
+						'setn_err' => 'syntax',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		if ( ! self::is_wpconfig_writable() ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'     => self::PAGE_SLUG,
+						'tab'      => 'wpconfig',
+						'setn_err' => 'not_writable',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		$result = file_put_contents( $path, $content, LOCK_EX );
+
+		if ( false !== $result ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'   => self::PAGE_SLUG,
+						'tab'    => 'wpconfig',
+						'setn_ok' => '1',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'     => self::PAGE_SLUG,
+					'tab'      => 'wpconfig',
+					'setn_err' => 'write_failed',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
 	}
 
 	/**
@@ -244,6 +430,22 @@ class Setn_Settings {
 				echo '<div class="notice notice-error"><p>' . esc_html__( 'Error al guardar el archivo .htaccess.', 'settinator' ) . '</p></div>';
 			}
 		}
+		// Show admin notices for wp-config save result.
+		if ( isset( $_GET['setn_ok'] ) && '1' === $_GET['setn_ok'] && 'wpconfig' === $active_tab ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'El archivo wp-config.php se ha guardado correctamente.', 'settinator' ) . '</p></div>';
+		}
+		if ( isset( $_GET['setn_err'] ) && 'wpconfig' === $active_tab ) {
+			$err = sanitize_key( $_GET['setn_err'] );
+			if ( 'syntax' === $err ) {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'wp-config failed', 'settinator' ) . '</p></div>';
+			}
+			if ( 'not_writable' === $err ) {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'No se puede escribir en wp-config.php. Comprueba los permisos del archivo.', 'settinator' ) . '</p></div>';
+			}
+			if ( 'write_failed' === $err ) {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'Error al guardar el archivo wp-config.php.', 'settinator' ) . '</p></div>';
+			}
+		}
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
@@ -257,6 +459,10 @@ class Setn_Settings {
 					class="nav-tab <?php echo 'htaccess' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Editor .htaccess', 'settinator' ); ?>
 				</a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=wpconfig' ) ); ?>"
+					class="nav-tab <?php echo 'wpconfig' === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Editor wp-config.php', 'settinator' ); ?>
+				</a>
 			</nav>
 
 			<div class="settinator-tab-content" style="margin-top: 20px;">
@@ -264,6 +470,8 @@ class Setn_Settings {
 					<?php /* Pestaña vacía. */ ?>
 				<?php elseif ( 'htaccess' === $active_tab ) : ?>
 					<?php self::render_htaccess_tab(); ?>
+				<?php elseif ( 'wpconfig' === $active_tab ) : ?>
+					<?php self::render_wpconfig_tab(); ?>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -314,6 +522,56 @@ class Setn_Settings {
 			<?php if ( $writable ) : ?>
 				<p>
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Guardar .htaccess', 'settinator' ); ?></button>
+				</p>
+			<?php endif; ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Render the wp-config.php editor tab (form + textarea).
+	 *
+	 * @return void
+	 */
+	protected static function render_wpconfig_tab() {
+		$path       = self::get_wpconfig_path();
+		$content    = self::get_wpconfig_content();
+		$writable   = self::is_wpconfig_writable();
+		$last_mtime = self::get_wpconfig_last_modified();
+		?>
+		<p class="description">
+			<?php esc_html_e( 'Aquí puedes ver y editar el archivo wp-config.php de tu sitio. Está en la raíz de WordPress:', 'settinator' ); ?>
+			<code><?php echo esc_html( $path ); ?></code>
+		</p>
+		<?php if ( null !== $last_mtime ) : ?>
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: date and time of last file modification */
+				esc_html__( 'Última modificación del archivo: %s', 'settinator' ),
+				esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $last_mtime ) )
+			);
+			?>
+		</p>
+		<?php endif; ?>
+		<?php if ( ! $writable ) : ?>
+			<div class="notice notice-warning inline">
+				<p><?php esc_html_e( 'El archivo no tiene permisos de escritura. No podrás guardar cambios hasta que ajustes los permisos.', 'settinator' ); ?></p>
+			</div>
+		<?php endif; ?>
+		<div class="notice notice-info inline">
+			<p><?php esc_html_e( 'Un error en wp-config.php puede dejar tu sitio inaccesible. Haz una copia de seguridad antes de modificar.', 'settinator' ); ?></p>
+		</div>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=wpconfig' ) ); ?>" id="setn-wpconfig-form">
+			<?php wp_nonce_field( self::WPCONFIG_NONCE_ACTION, 'setn_wpconfig_nonce' ); ?>
+			<p>
+				<label for="setn_wpconfig_content" class="screen-reader-text"><?php esc_html_e( 'Contenido de wp-config.php', 'settinator' ); ?></label>
+				<textarea name="setn_wpconfig_content" id="setn_wpconfig_content" class="large-text code" rows="25" style="width: 100%; font-family: Consolas, Monaco, monospace; font-size: 13px;" <?php echo $writable ? '' : 'readonly'; ?>><?php echo esc_textarea( $content ); ?></textarea>
+			</p>
+			<?php if ( $writable ) : ?>
+				<p>
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Guardar wp-config.php', 'settinator' ); ?></button>
 				</p>
 			<?php endif; ?>
 		</form>
