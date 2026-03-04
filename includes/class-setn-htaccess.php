@@ -5,7 +5,7 @@
  * @package Settinator
  * @author Castellón
  * @copyright 2026 Castellón
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 defined( 'ABSPATH' ) || exit;
