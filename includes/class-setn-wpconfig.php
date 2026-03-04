@@ -194,6 +194,59 @@ class Setn_Wpconfig {
 	}
 
 	/**
+	 * Enable full multisite: add all required constants to wp-config.php (subdirectory install).
+	 * Call this when the user enables the multisite toggle. Then redirect to network.php to run the DB upgrade.
+	 *
+	 * @return bool True on success, false on failure or not writable.
+	 */
+	public static function enable_multisite_full() {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$domain  = parse_url( home_url(), PHP_URL_HOST );
+		$path    = parse_url( home_url(), PHP_URL_PATH );
+		if ( empty( $domain ) ) {
+			$domain = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : 'localhost';
+		}
+		if ( empty( $path ) ) {
+			$path = '/';
+		}
+		$path = rtrim( $path, '/' );
+		if ( '' === $path ) {
+			$path = '/';
+		}
+
+		$block = "\n" . "define( 'WP_ALLOW_MULTISITE', true );" . "\n"
+			. "define( 'MULTISITE', true );" . "\n"
+			. "define( 'SUBDOMAIN_INSTALL', false );" . "\n"
+			. "define( 'DOMAIN_CURRENT_SITE', '" . str_replace( "'", "\\'", $domain ) . "' );" . "\n"
+			. "define( 'PATH_CURRENT_SITE', '" . str_replace( "'", "\\'", $path ) . "' );" . "\n"
+			. "define( 'SITE_ID_CURRENT_SITE', 1 );" . "\n"
+			. "define( 'BLOG_ID_CURRENT_SITE', 1 );" . "\n";
+
+		$constants = array( 'WP_ALLOW_MULTISITE', 'MULTISITE', 'SUBDOMAIN_INSTALL', 'DOMAIN_CURRENT_SITE', 'PATH_CURRENT_SITE', 'SITE_ID_CURRENT_SITE', 'BLOG_ID_CURRENT_SITE' );
+		foreach ( $constants as $const ) {
+			$content = preg_replace( '/define\s*\(\s*[\'" ]' . preg_quote( $const, '/' ) . '[\'" ]\s*,\s*[^;]+;\s*\n?/i', '', $content );
+		}
+		$stop = "/* That's all, stop editing!";
+		$pos  = strpos( $content, $stop );
+		if ( false !== $pos ) {
+			$content = substr_replace( $content, $block . "\n" . $stop, $pos, strlen( $stop ) );
+		} else {
+			$content = $content . $block;
+		}
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		if ( false !== $result && function_exists( 'opcache_invalidate' ) ) {
+			opcache_invalidate( self::get_path(), true );
+		}
+		return false !== $result;
+	}
+
+	/**
 	 * Save wp-config.php content. Called on form submit.
 	 *
 	 * @return void

@@ -68,6 +68,9 @@ class Setn_Settings {
 			if ( 'write_failed' === $err ) {
 				echo '<div class="notice notice-error"><p>' . esc_html__( 'Failed to update wp-config.php.', 'settinator' ) . '</p></div>';
 			}
+			if ( 'config' === $err ) {
+				echo '<div class="notice notice-warning"><p>' . esc_html__( 'Multisite config was not loaded yet (e.g. cache). Try activating the toggle again and when redirected, wait for the next page to finish loading.', 'settinator' ) . '</p></div>';
+			}
 		}
 
 		// Notices for wp-config save result.
@@ -155,16 +158,20 @@ class Setn_Settings {
 				<?php if ( ! $wpconfig_writable ) : ?>
 					<p class="description" style="color: #b32d2e;"><?php esc_html_e( 'wp-config.php is not writable. Make it writable to change this setting.', 'settinator' ); ?></p>
 				<?php else : ?>
-					<p class="description"><?php esc_html_e( 'When enabled, WordPress will allow you to create a network. After saving, go to Tools → Network Setup to complete the conversion.', 'settinator' ); ?></p>
+					<p class="description"><?php esc_html_e( 'When enabled, Settinator will add all multisite constants to wp-config.php, update .htaccess, and redirect you to complete the conversion. The site will become multisite (subdirectory install).', 'settinator' ); ?></p>
 					<p>
 						<button type="submit" class="button button-primary"><?php esc_html_e( 'Save changes', 'settinator' ); ?></button>
 					</p>
 				<?php endif; ?>
 			</form>
 			<?php if ( $multisite_allowed && ! $is_multisite ) : ?>
-				<hr style="margin: 24px 0;">
-				<p><strong><?php esc_html_e( 'Next step:', 'settinator' ); ?></strong></p>
-				<p><a href="<?php echo esc_url( $network_setup_new ); ?>" class="button button-primary"><?php esc_html_e( 'Go to Network Setup', 'settinator' ); ?></a></p>
+				<div class="notice notice-warning inline" style="margin-top: 24px; padding: 16px 20px; display: block;">
+					<p style="margin: 0 0 12px 0; font-weight: 600;"><?php esc_html_e( 'The site is not multisite yet.', 'settinator' ); ?></p>
+					<p style="margin: 0 0 12px 0;"><?php esc_html_e( 'WP_ALLOW_MULTISITE is enabled in wp-config.php, but you must complete the Network Setup so that WordPress adds the rest of the configuration and converts this site to multisite.', 'settinator' ); ?></p>
+					<p style="margin: 0;">
+						<a href="<?php echo esc_url( $network_setup_new ); ?>" class="button button-primary button-hero"><?php esc_html_e( 'Go to Network Setup (Tools → Network Setup)', 'settinator' ); ?></a>
+					</p>
+				</div>
 			<?php endif; ?>
 		<?php endif; ?>
 		<?php

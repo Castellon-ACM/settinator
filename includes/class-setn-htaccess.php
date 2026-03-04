@@ -87,6 +87,47 @@ class Setn_Htaccess {
 	}
 
 	/**
+	 * Replace or add WordPress multisite (subdirectory) rewrite rules in .htaccess.
+	 *
+	 * @return bool True on success, false if not writable or validation fails.
+	 */
+	public static function add_multisite_rules() {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$multisite_block = "\n# BEGIN Multisite\n"
+			. "<IfModule mod_rewrite.c>\n"
+			. "RewriteEngine On\n"
+			. "RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]\n"
+			. "RewriteBase /\n"
+			. "RewriteRule ^index\\.php$ - [L]\n"
+			. "RewriteRule ^([_0-9a-zA-Z-]+/)?wp-admin$ $1wp-admin/ [R=301,L]\n"
+			. "RewriteCond %{REQUEST_FILENAME} -f [OR]\n"
+			. "RewriteCond %{REQUEST_FILENAME} -d\n"
+			. "RewriteRule ^ - [L]\n"
+			. "RewriteRule ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) $2 [L]\n"
+			. "RewriteRule ^([_0-9a-zA-Z-]+/)?(.*\\.php)$ $2 [L]\n"
+			. "RewriteRule . index.php [L]\n"
+			. "</IfModule>\n"
+			. "# END Multisite\n";
+
+		if ( preg_match( '/# BEGIN Multisite\b/', $content ) ) {
+			return true;
+		}
+		if ( preg_match( '/# BEGIN WordPress\b.*?# END WordPress\b/s', $content ) ) {
+			$content = preg_replace( '/# BEGIN WordPress\b.*?# END WordPress\b/s', trim( $multisite_block ), $content );
+		} else {
+			$content = $content . $multisite_block;
+		}
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		return false !== $result;
+	}
+
+	/**
 	 * Validate .htaccess syntax (balanced directives, invalid patterns, no null bytes).
 	 *
 	 * @param string $content Content to validate.
