@@ -4,7 +4,7 @@ Tags: settings, htaccess, wp-config, configuration, editor
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,7 +59,7 @@ If "htaccess failed" or "wp-config failed" appears, the content you pasted or ty
 
 == Changelog ==
 
-= 1.0.1 =
+= 1.0.2 =
 * Code reorganized into separate files (class-setn-htaccess.php, class-setn-wpconfig.php, class-setn-settings.php).
 * Added readme.txt and readme.md.
 
@@ -72,5 +72,5 @@ If "htaccess failed" or "wp-config failed" appears, the content you pasted or ty
 
 == Upgrade Notice ==
 
-= 1.0.1 =
+= 1.0.2 =
 Improved file structure and documentation (readme). No functional changes.

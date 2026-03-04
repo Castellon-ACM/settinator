@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Settinator
  * Description: Plugin con pestaña de ajustes.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Alejandro Castellón
  * Text Domain: settinator
  * Domain Path: /languages
@@ -21,7 +21,7 @@
 
 defined( 'ABSPATH' ) || die( 'No script kiddies please!' );
 
-define( 'SETN_VERSION', '1.0.1' );
+define( 'SETN_VERSION', '1.0.2' );
 define( 'SETN_FILE', __FILE__ );
 define( 'SETN_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SETN_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
