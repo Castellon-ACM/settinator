@@ -37,6 +37,8 @@ function setn_plugin_init() {
 	load_plugin_textdomain( 'settinator', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 }
 
+require_once SETN_PLUGIN_PATH . 'includes/class-setn-htaccess.php';
+require_once SETN_PLUGIN_PATH . 'includes/class-setn-wpconfig.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-settings.php';
 
 add_action( 'admin_menu', 'setn_add_settings_page' );
@@ -55,7 +57,7 @@ function setn_maybe_save_htaccess() {
 	if ( ! isset( $_GET['page'] ) || 'settinator' !== $_GET['page'] ) {
 		return;
 	}
-	Setn_Settings::save_htaccess();
+	Setn_Htaccess::save();
 }
 
 /**
@@ -70,7 +72,7 @@ function setn_maybe_save_wpconfig() {
 	if ( ! isset( $_GET['page'] ) || 'settinator' !== $_GET['page'] ) {
 		return;
 	}
-	Setn_Settings::save_wpconfig();
+	Setn_Wpconfig::save();
 }
 
 /**
