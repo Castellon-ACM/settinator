@@ -69,7 +69,7 @@ function setn_add_settings_page() {
 		'manage_options',
 		'settinator',
 		array( Setn_Settings::class, 'render_page' ),
-		'dashicons-admin-tools',
+		'dashicons-admin-generic',
 		80
 	);
 }
