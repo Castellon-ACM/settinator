@@ -40,6 +40,22 @@ function setn_plugin_init() {
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-settings.php';
 
 add_action( 'admin_menu', 'setn_add_settings_page' );
+add_action( 'admin_init', 'setn_maybe_save_htaccess' );
+
+/**
+ * Process .htaccess form submit before rendering the page.
+ *
+ * @return void
+ */
+function setn_maybe_save_htaccess() {
+	if ( ! isset( $_POST['setn_htaccess_nonce'] ) || empty( $_POST['setn_htaccess_nonce'] ) ) {
+		return;
+	}
+	if ( ! isset( $_GET['page'] ) || 'settinator' !== $_GET['page'] ) {
+		return;
+	}
+	Setn_Settings::save_htaccess();
+}
 
 /**
  * Add Settinator settings page to admin menu.
