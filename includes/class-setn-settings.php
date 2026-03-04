@@ -12,6 +12,10 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Class Setn_Settings
+ *
+ * Provides two independent editors with their own validators:
+ * - .htaccess: Apache syntax (directives, blocks, RewriteCond, etc.).
+ * - wp-config.php: PHP syntax (php -l or balanced braces/strings).
  */
 class Setn_Settings {
 
@@ -35,6 +39,12 @@ class Setn_Settings {
 	 * @var string
 	 */
 	const WPCONFIG_NONCE_ACTION = 'setn_save_wpconfig';
+
+	/*
+	 * ==========================================================================
+	 * .htaccess: path, content, last modified, writable, validator, save, render
+	 * ==========================================================================
+	 */
 
 	/**
 	 * Get the path to the .htaccess file (WordPress root).
@@ -86,6 +96,12 @@ class Setn_Settings {
 		return is_writable( ABSPATH );
 	}
 
+	/*
+	 * ==========================================================================
+	 * wp-config.php: path, content, last modified, writable, validator, save
+	 * ==========================================================================
+	 */
+
 	/**
 	 * Get the path to the wp-config.php file (WordPress root).
 	 *
@@ -134,7 +150,7 @@ class Setn_Settings {
 	}
 
 	/**
-	 * Validate wp-config.php PHP syntax (no null bytes, valid PHP).
+	 * Validator for wp-config.php only. PHP syntax: null bytes, php -l or basic brace/string balance.
 	 *
 	 * @param string $content Content to validate.
 	 * @return bool True if syntax appears valid, false otherwise.
@@ -283,14 +299,14 @@ class Setn_Settings {
 	}
 
 	/**
-	 * Known Apache block directive names (opening and closing).
+	 * Known Apache block directive names (opening and closing). Used only by htaccess validator.
 	 *
 	 * @var string
 	 */
 	const HTACCESS_VALID_TAGS = 'IfModule|IfDefine|Directory|DirectoryMatch|Files|FilesMatch|Location|LocationMatch|VirtualHost|Limit|LimitExcept';
 
 	/**
-	 * Validate .htaccess syntax (balanced directives, invalid patterns, no null bytes).
+	 * Validator for .htaccess only. Apache syntax: balanced blocks, no invalid <>, no RewriteCond !! or // outside URLs.
 	 *
 	 * @param string $content Content to validate.
 	 * @return bool True if syntax appears valid, false otherwise.
