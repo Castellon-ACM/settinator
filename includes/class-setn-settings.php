@@ -89,7 +89,7 @@ class Setn_Settings {
 						'tab'     => 'htaccess',
 						'setn_err' => 'not_writable',
 					),
-					admin_url( 'options-general.php' )
+					admin_url( 'admin.php' )
 				)
 			);
 			exit;
@@ -105,7 +105,7 @@ class Setn_Settings {
 						'tab'    => 'htaccess',
 						'setn_ok' => '1',
 					),
-					admin_url( 'options-general.php' )
+					admin_url( 'admin.php' )
 				)
 			);
 			exit;
@@ -118,7 +118,7 @@ class Setn_Settings {
 					'tab'     => 'htaccess',
 					'setn_err' => 'write_failed',
 				),
-				admin_url( 'options-general.php' )
+				admin_url( 'admin.php' )
 			)
 		);
 		exit;
@@ -150,11 +150,11 @@ class Setn_Settings {
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
 			<nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e( 'Secondary menu', 'settinator' ); ?>">
-				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG . '&tab=general' ) ); ?>"
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=general' ) ); ?>"
 					class="nav-tab <?php echo 'general' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'General', 'settinator' ); ?>
 				</a>
-				<a href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG . '&tab=htaccess' ) ); ?>"
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=htaccess' ) ); ?>"
 					class="nav-tab <?php echo 'htaccess' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Editor .htaccess', 'settinator' ); ?>
 				</a>
@@ -194,7 +194,7 @@ class Setn_Settings {
 			<p><?php esc_html_e( 'Un error en .htaccess puede dejar tu sitio inaccesible. Haz una copia de seguridad antes de modificar y comprueba la sintaxis de Apache.', 'settinator' ); ?></p>
 		</div>
 
-		<form method="post" action="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::PAGE_SLUG . '&tab=htaccess' ) ); ?>" id="setn-htaccess-form">
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=htaccess' ) ); ?>" id="setn-htaccess-form">
 			<?php wp_nonce_field( self::HTACCESS_NONCE_ACTION, 'setn_htaccess_nonce' ); ?>
 			<p>
 				<label for="setn_htaccess_content" class="screen-reader-text"><?php esc_html_e( 'Contenido de .htaccess', 'settinator' ); ?></label>

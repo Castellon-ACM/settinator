@@ -58,16 +58,18 @@ function setn_maybe_save_htaccess() {
 }
 
 /**
- * Add Settinator settings page to admin menu.
+ * Add Settinator as top-level menu item in admin.
  *
  * @return void
  */
 function setn_add_settings_page() {
-	add_options_page(
+	add_menu_page(
 		__( 'Settinator', 'settinator' ),
 		__( 'Settinator', 'settinator' ),
 		'manage_options',
 		'settinator',
-		array( Setn_Settings::class, 'render_page' )
+		array( Setn_Settings::class, 'render_page' ),
+		'dashicons-admin-tools',
+		80
 	);
 }
