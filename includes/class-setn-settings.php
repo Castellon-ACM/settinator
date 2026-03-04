@@ -66,7 +66,14 @@ class Setn_Settings {
 	}
 
 	/**
-	 * Validate .htaccess syntax (balanced directives, no null bytes).
+	 * Known Apache block directive names (opening and closing).
+	 *
+	 * @var string
+	 */
+	const HTACCESS_VALID_TAGS = 'IfModule|IfDefine|Directory|DirectoryMatch|Files|FilesMatch|Location|LocationMatch|VirtualHost|Limit|LimitExcept';
+
+	/**
+	 * Validate .htaccess syntax (balanced directives, invalid patterns, no null bytes).
 	 *
 	 * @param string $content Content to validate.
 	 * @return bool True if syntax appears valid, false otherwise.
@@ -75,8 +82,11 @@ class Setn_Settings {
 		if ( false !== strpos( $content, "\0" ) ) {
 			return false;
 		}
+
+		// Balanced block directives.
 		$stack = array();
-		if ( preg_match_all( '#<(/?)(IfModule|IfDefine|Directory|DirectoryMatch|Files|FilesMatch|Location|LocationMatch|VirtualHost|Limit|LimitExcept)\b#i', $content, $m, PREG_SET_ORDER ) ) {
+		$regex = '#<(/?)(' . self::HTACCESS_VALID_TAGS . ')\b#i';
+		if ( preg_match_all( $regex, $content, $m, PREG_SET_ORDER ) ) {
 			foreach ( $m as $match ) {
 				$closed = ( '' !== $match[1] );
 				$name   = strtolower( $match[2] );
@@ -92,6 +102,34 @@ class Setn_Settings {
 				return false;
 			}
 		}
+
+		// Invalid angle bracket: < not followed by valid directive (e.g. <-- in a comment).
+		if ( preg_match( '#<(?!\/?(' . self::HTACCESS_VALID_TAGS . ')\b)\S#', $content ) ) {
+			return false;
+		}
+
+		// RewriteCond with invalid double negation (!!).
+		if ( preg_match( '#RewriteCond\b[^\n]*!!#i', $content ) ) {
+			return false;
+		}
+
+		// Lines with // that are not part of http:// or https:// (invalid in Apache).
+		$lines = preg_split( '/\r\n|\r|\n/', $content );
+		foreach ( $lines as $line ) {
+			$line = trim( $line );
+			if ( '' === $line ) {
+				continue;
+			}
+			$before_comment = preg_replace( '/#.*$/', '', $line );
+			$before_comment = trim( $before_comment );
+			if ( '' === $before_comment ) {
+				continue;
+			}
+			if ( false !== strpos( $before_comment, '//' ) && ! preg_match( '#https?://#', $before_comment ) ) {
+				return false;
+			}
+		}
+
 		return true;
 	}
 
