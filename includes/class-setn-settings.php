@@ -66,6 +66,36 @@ class Setn_Settings {
 	}
 
 	/**
+	 * Validate .htaccess syntax (balanced directives, no null bytes).
+	 *
+	 * @param string $content Content to validate.
+	 * @return bool True if syntax appears valid, false otherwise.
+	 */
+	public static function validate_htaccess_syntax( $content ) {
+		if ( false !== strpos( $content, "\0" ) ) {
+			return false;
+		}
+		$stack = array();
+		if ( preg_match_all( '#<(/?)(IfModule|IfDefine|Directory|DirectoryMatch|Files|FilesMatch|Location|LocationMatch|VirtualHost|Limit|LimitExcept)\b#i', $content, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $match ) {
+				$closed = ( '' !== $match[1] );
+				$name   = strtolower( $match[2] );
+				if ( $closed ) {
+					if ( empty( $stack ) || array_pop( $stack ) !== $name ) {
+						return false;
+					}
+				} else {
+					$stack[] = $name;
+				}
+			}
+			if ( ! empty( $stack ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Save .htaccess content. Called on form submit.
 	 *
 	 * @return void
@@ -80,6 +110,20 @@ class Setn_Settings {
 		}
 		$content = isset( $_POST['setn_htaccess_content'] ) ? wp_unslash( $_POST['setn_htaccess_content'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$path   = self::get_htaccess_path();
+
+		if ( ! self::validate_htaccess_syntax( $content ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'    => self::PAGE_SLUG,
+						'tab'     => 'htaccess',
+						'setn_err' => 'syntax',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
 
 		if ( ! self::is_htaccess_writable() ) {
 			wp_safe_redirect(
@@ -138,6 +182,9 @@ class Setn_Settings {
 		}
 		if ( isset( $_GET['setn_err'] ) && 'htaccess' === $active_tab ) {
 			$err = sanitize_key( $_GET['setn_err'] );
+			if ( 'syntax' === $err ) {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'htaccess failed', 'settinator' ) . '</p></div>';
+			}
 			if ( 'not_writable' === $err ) {
 				echo '<div class="notice notice-error"><p>' . esc_html__( 'No se puede escribir en .htaccess. Comprueba los permisos del archivo o del directorio raíz.', 'settinator' ) . '</p></div>';
 			}
