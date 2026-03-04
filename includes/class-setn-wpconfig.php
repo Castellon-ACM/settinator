@@ -153,6 +153,47 @@ class Setn_Wpconfig {
 	}
 
 	/**
+	 * Check if WP_ALLOW_MULTISITE is defined and true in wp-config.php.
+	 *
+	 * @return bool
+	 */
+	public static function get_multisite_allowed() {
+		$content = self::get_content();
+		return (bool) preg_match( '/define\s*\(\s*[\'" ]WP_ALLOW_MULTISITE[\'" ]\s*,\s*true\s*\)/i', $content );
+	}
+
+	/**
+	 * Set WP_ALLOW_MULTISITE to true or false in wp-config.php.
+	 *
+	 * @param bool $allowed Whether to allow multisite.
+	 * @return bool True on success, false on failure or not writable.
+	 */
+	public static function set_multisite_allowed( $allowed ) {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$define  = "define( 'WP_ALLOW_MULTISITE', " . ( $allowed ? 'true' : 'false' ) . " );";
+		$regex   = '/define\s*\(\s*[\'" ]WP_ALLOW_MULTISITE[\'" ]\s*,\s*(?:true|false)\s*\)\s*;/i';
+		if ( preg_match( $regex, $content ) ) {
+			$content = preg_replace( $regex, $define, $content );
+		} else {
+			$stop = "/* That's all, stop editing!";
+			$pos  = strpos( $content, $stop );
+			if ( false !== $pos ) {
+				$content = substr_replace( $content, $define . "\n\n", $pos, 0 );
+			} else {
+				$content = $content . "\n\n" . $define . "\n";
+			}
+		}
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		return false !== $result;
+	}
+
+	/**
 	 * Save wp-config.php content. Called on form submit.
 	 *
 	 * @return void
