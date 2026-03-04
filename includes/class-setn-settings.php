@@ -143,30 +143,29 @@ class Setn_Settings {
 		if ( false !== strpos( $content, "\0" ) ) {
 			return false;
 		}
-		if ( ! function_exists( 'exec' ) ) {
-			return self::validate_wpconfig_syntax_basic( $content );
+		if ( function_exists( 'exec' ) ) {
+			$tmp = wp_tempnam( 'wpconfig-' );
+			if ( $tmp ) {
+				$written = file_put_contents( $tmp, $content, LOCK_EX );
+				if ( false !== $written ) {
+					$out = array();
+					$ret = -1;
+					@exec( 'php -l ' . escapeshellarg( $tmp ) . ' 2>&1', $out, $ret );
+					@unlink( $tmp );
+					if ( 0 === $ret ) {
+						return true;
+					}
+				} else {
+					@unlink( $tmp );
+				}
+			}
 		}
-		$tmp = wp_tempnam( 'wpconfig-' );
-		if ( ! $tmp ) {
-			return self::validate_wpconfig_syntax_basic( $content );
-		}
-		$written = file_put_contents( $tmp, $content, LOCK_EX );
-		if ( false === $written ) {
-			@unlink( $tmp );
-			return false;
-		}
-		$out = array();
-		$ret = -1;
-		@exec( 'php -l ' . escapeshellarg( $tmp ) . ' 2>&1', $out, $ret );
-		@unlink( $tmp );
-		if ( 0 === $ret ) {
-			return true;
-		}
-		return false;
+		return self::validate_wpconfig_syntax_basic( $content );
 	}
 
 	/**
 	 * Basic wp-config validation when php -l is not available (balanced braces, has PHP open tag).
+	 * Ignores brackets inside single/double quoted strings so define() keys don't break the count.
 	 *
 	 * @param string $content Content to validate.
 	 * @return bool True if basic checks pass, false otherwise.
@@ -175,19 +174,37 @@ class Setn_Settings {
 		if ( false === strpos( $content, '<?php' ) && false === strpos( $content, '<?' ) ) {
 			return false;
 		}
-		$stack = array();
-		$pairs = array( '{' => '}', '[' => ']', '(' => ')' );
-		$close = array_flip( $pairs );
-		$len   = strlen( $content );
-		for ( $i = 0; $i < $len; $i++ ) {
+		$stack   = array();
+		$pairs   = array( '{' => '}', '[' => ']', '(' => ')' );
+		$close   = array_flip( $pairs );
+		$len     = strlen( $content );
+		$in_str  = null; // null = outside, "'" = single quoted, '"' = double quoted.
+		$i       = 0;
+		while ( $i < $len ) {
 			$c = $content[ $i ];
-			if ( isset( $pairs[ $c ] ) ) {
-				$stack[] = $pairs[ $c ];
-			} elseif ( isset( $close[ $c ] ) ) {
-				if ( empty( $stack ) || array_pop( $stack ) !== $c ) {
-					return false;
+			if ( null === $in_str ) {
+				if ( "'" === $c || '"' === $c ) {
+					$in_str = $c;
+					$i++;
+					continue;
+				}
+				if ( isset( $pairs[ $c ] ) ) {
+					$stack[] = $pairs[ $c ];
+				} elseif ( isset( $close[ $c ] ) ) {
+					if ( empty( $stack ) || array_pop( $stack ) !== $c ) {
+						return false;
+					}
+				}
+			} else {
+				if ( '\\' === $c && $i + 1 < $len ) {
+					$i += 2;
+					continue;
+				}
+				if ( $c === $in_str ) {
+					$in_str = null;
 				}
 			}
+			$i++;
 		}
 		return empty( $stack );
 	}
