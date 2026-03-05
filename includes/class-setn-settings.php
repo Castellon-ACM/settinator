@@ -139,7 +139,7 @@ class Setn_Settings {
 		$wpconfig_writable     = Setn_Wpconfig::is_writable();
 		$network_setup_url     = admin_url( 'network.php' );
 		$network_setup_new     = admin_url( 'network/setup.php' );
-		$category_base_removed = ( get_option( 'category_base' ) === '.' );
+		$category_base_removed = Setn_Permalinks::is_category_base_removed();
 		?>
 		<style>
 			.setn-toggle-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

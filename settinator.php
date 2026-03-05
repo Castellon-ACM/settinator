@@ -40,6 +40,7 @@ function setn_plugin_init() {
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-htaccess.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-wpconfig.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-multisite.php';
+require_once SETN_PLUGIN_PATH . 'includes/class-setn-permalinks.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-settings.php';
 
 add_action( 'admin_menu', 'setn_add_settings_page' );
@@ -97,14 +98,8 @@ function setn_maybe_save_general() {
 		return;
 	}
 
-	// Category base: remove /category/ from category URLs when toggle is on.
 	$remove_category_base = isset( $_POST['setn_remove_category_base'] ) && '1' === $_POST['setn_remove_category_base'];
-	if ( $remove_category_base ) {
-		update_option( 'category_base', '.' );
-	} else {
-		update_option( 'category_base', 'category' );
-	}
-	flush_rewrite_rules( false );
+	Setn_Permalinks::save_category_base( $remove_category_base );
 
 	$enable = isset( $_POST['setn_multisite'] ) && '1' === $_POST['setn_multisite'];
 	if ( ! Setn_Wpconfig::is_writable() ) {
