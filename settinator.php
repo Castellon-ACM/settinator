@@ -96,6 +96,16 @@ function setn_maybe_save_general() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
+
+	// Category base: remove /category/ from category URLs when toggle is on.
+	$remove_category_base = isset( $_POST['setn_remove_category_base'] ) && '1' === $_POST['setn_remove_category_base'];
+	if ( $remove_category_base ) {
+		update_option( 'category_base', '.' );
+	} else {
+		update_option( 'category_base', 'category' );
+	}
+	flush_rewrite_rules( false );
+
 	$enable = isset( $_POST['setn_multisite'] ) && '1' === $_POST['setn_multisite'];
 	if ( ! Setn_Wpconfig::is_writable() ) {
 		wp_safe_redirect(
@@ -128,14 +138,29 @@ function setn_maybe_save_general() {
 		);
 		exit;
 	}
-	$ok = Setn_Multisite::disable();
-	if ( $ok ) {
+	// Only run disable when multisite is actually enabled or allowed.
+	$was_multisite = ( defined( 'MULTISITE' ) && MULTISITE ) || Setn_Wpconfig::get_multisite_allowed();
+	if ( $was_multisite ) {
+		$ok = Setn_Multisite::disable();
+		if ( $ok ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'              => Setn_Settings::PAGE_SLUG,
+						'tab'               => 'general',
+						'setn_ok_multisite' => '0',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
 		wp_safe_redirect(
 			add_query_arg(
 				array(
 					'page'                => Setn_Settings::PAGE_SLUG,
 					'tab'                 => 'general',
-					'setn_ok_multisite'   => '0',
+					'setn_err_multisite' => 'write_failed',
 				),
 				admin_url( 'admin.php' )
 			)
@@ -145,9 +170,9 @@ function setn_maybe_save_general() {
 	wp_safe_redirect(
 		add_query_arg(
 			array(
-				'page'                => Setn_Settings::PAGE_SLUG,
-				'tab'                 => 'general',
-				'setn_err_multisite' => 'write_failed',
+				'page'            => Setn_Settings::PAGE_SLUG,
+				'tab'             => 'general',
+				'setn_ok_general' => '1',
 			),
 			admin_url( 'admin.php' )
 		)

@@ -56,7 +56,10 @@ class Setn_Settings {
 			}
 		}
 
-		// Notices for General (multisite toggle) save result.
+		// Notices for General (multisite / category base) save result.
+		if ( isset( $_GET['setn_ok_general'] ) && '1' === $_GET['setn_ok_general'] && 'general' === $active_tab ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Cambios guardados.', 'settinator' ) . '</p></div>';
+		}
 		if ( isset( $_GET['setn_ok_multisite'] ) && 'general' === $active_tab ) {
 			if ( '1' === $_GET['setn_ok_multisite'] ) {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Multisite enabled. Redirecting to Network Admin.', 'settinator' ) . '</p></div>';
@@ -131,11 +134,12 @@ class Setn_Settings {
 	 * @return void
 	 */
 	public static function render_general_tab() {
-		$is_multisite       = defined( 'MULTISITE' ) && MULTISITE;
-		$multisite_allowed  = Setn_Wpconfig::get_multisite_allowed();
-		$wpconfig_writable  = Setn_Wpconfig::is_writable();
-		$network_setup_url  = admin_url( 'network.php' );
-		$network_setup_new  = admin_url( 'network/setup.php' );
+		$is_multisite          = defined( 'MULTISITE' ) && MULTISITE;
+		$multisite_allowed     = Setn_Wpconfig::get_multisite_allowed();
+		$wpconfig_writable     = Setn_Wpconfig::is_writable();
+		$network_setup_url     = admin_url( 'network.php' );
+		$network_setup_new     = admin_url( 'network/setup.php' );
+		$category_base_removed = ( get_option( 'category_base' ) === '.' );
 		?>
 		<style>
 			.setn-toggle-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -148,6 +152,14 @@ class Setn_Settings {
 		</style>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=general' ) ); ?>" id="setn-general-form">
 			<?php wp_nonce_field( self::GENERAL_NONCE_ACTION, 'setn_general_nonce' ); ?>
+			<div class="setn-toggle-wrap" style="margin-bottom: 16px;">
+				<label class="setn-toggle-label" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+					<input type="checkbox" name="setn_remove_category_base" value="1" <?php checked( $category_base_removed ); ?>>
+					<span class="toggle" aria-hidden="true"></span>
+					<span><?php esc_html_e( 'Quitar /category/ de las URLs de categorías', 'settinator' ); ?></span>
+				</label>
+			</div>
+			<p class="description" style="margin-top: -8px; margin-bottom: 20px;"><?php esc_html_e( 'Si está activo, las categorías usarán URLs como /nombre-categoria/ en lugar de /category/nombre-categoria/.', 'settinator' ); ?></p>
 			<div class="setn-toggle-wrap" style="margin-bottom: 16px;">
 				<label class="setn-toggle-label" style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
 					<input type="checkbox" name="setn_multisite" value="1" <?php checked( $multisite_allowed || $is_multisite ); ?> <?php echo $wpconfig_writable ? '' : 'disabled'; ?>>
