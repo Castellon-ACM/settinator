@@ -41,6 +41,7 @@ require_once SETN_PLUGIN_PATH . 'includes/class-setn-htaccess.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-wpconfig.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-multisite.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-permalinks.php';
+require_once SETN_PLUGIN_PATH . 'includes/class-setn-admin.php';
 require_once SETN_PLUGIN_PATH . 'includes/class-setn-settings.php';
 
 add_action( 'admin_menu', 'setn_add_settings_page' );

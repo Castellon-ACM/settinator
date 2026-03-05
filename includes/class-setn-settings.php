@@ -2,7 +2,7 @@
 /**
  * Settinator settings page: menu, tabs shell, admin notices.
  *
- * Delegates .htaccess and wp-config editing to Setn_Htaccess and Setn_Wpconfig.
+ * Delegates .htaccess and wp-config editing to Setn_Htaccess and Setn_Wpconfig; Admin tab to Setn_Admin.
  *
  * @package Settinator
  * @author Castellón
@@ -113,6 +113,10 @@ class Setn_Settings {
 					class="nav-tab <?php echo Setn_Wpconfig::TAB_SLUG === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Editor wp-config.php', 'settinator' ); ?>
 				</a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&tab=' . Setn_Admin::TAB_SLUG ) ); ?>"
+					class="nav-tab <?php echo Setn_Admin::TAB_SLUG === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Admin', 'settinator' ); ?>
+				</a>
 			</nav>
 
 			<div class="settinator-tab-content" style="margin-top: 20px;">
@@ -122,6 +126,8 @@ class Setn_Settings {
 					<?php Setn_Htaccess::render_tab(); ?>
 				<?php elseif ( Setn_Wpconfig::TAB_SLUG === $active_tab ) : ?>
 					<?php Setn_Wpconfig::render_tab(); ?>
+				<?php elseif ( Setn_Admin::TAB_SLUG === $active_tab ) : ?>
+					<?php Setn_Admin::render_tab(); ?>
 				<?php endif; ?>
 			</div>
 		</div>
