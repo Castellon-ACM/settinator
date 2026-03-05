@@ -80,6 +80,20 @@ class Setn_Settings {
 			}
 		}
 
+		// Notices for Admin tab (custom admin URL slug).
+		if ( isset( $_GET['setn_ok_admin'] ) && '1' === $_GET['setn_ok_admin'] && Setn_Admin::TAB_SLUG === $active_tab ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Ruta del escritorio guardada. Usa la nueva URL para acceder al escritorio.', 'settinator' ) . '</p></div>';
+		}
+		if ( isset( $_GET['setn_err_admin'] ) && Setn_Admin::TAB_SLUG === $active_tab ) {
+			$err = sanitize_key( $_GET['setn_err_admin'] );
+			if ( 'not_writable' === $err ) {
+				echo '<div class="notice notice-error"><p>' . esc_html__( 'No se puede escribir en .htaccess. Comprueba los permisos.', 'settinator' ) . '</p></div>';
+			}
+			if ( 'invalid' === $err && isset( $_GET['setn_admin_msg'] ) ) {
+				echo '<div class="notice notice-error"><p>' . esc_html( sanitize_text_field( wp_unslash( $_GET['setn_admin_msg'] ) ) ) . '</p></div>';
+			}
+		}
+
 		// Notices for wp-config save result.
 		if ( isset( $_GET['setn_ok'] ) && '1' === $_GET['setn_ok'] && Setn_Wpconfig::TAB_SLUG === $active_tab ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'El archivo wp-config.php se ha guardado correctamente.', 'settinator' ) . '</p></div>';

@@ -132,6 +132,71 @@ class Setn_Htaccess {
 	 *
 	 * @return bool True on success, false if not writable or validation fails.
 	 */
+	/**
+	 * Markers for the custom admin slug block in .htaccess.
+	 *
+	 * @var string
+	 */
+	const ADMIN_SLUG_BEGIN = '# BEGIN Setn custom admin slug';
+	const ADMIN_SLUG_END   = '# END Setn custom admin slug';
+
+	/**
+	 * Build the .htaccess block for custom admin slug: rewrite /slug to /wp-admin and redirect /wp-admin to /slug.
+	 *
+	 * @param string $slug Custom slug (e.g. mi-panel). Must be safe for regex.
+	 * @return string
+	 */
+	public static function get_admin_slug_block( $slug ) {
+		$slug_quoted = preg_quote( $slug, '#' );
+		return "\n" . self::ADMIN_SLUG_BEGIN . "\n"
+			. "<IfModule mod_rewrite.c>\n"
+			. "RewriteEngine On\n"
+			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-admin/ [L,QSA]\n"
+			. "RewriteRule ^" . $slug_quoted . "/(.*)$ /wp-admin/$1 [L,QSA]\n"
+			. "RewriteCond %{REQUEST_URI} ^/wp-admin\n"
+			. "RewriteRule ^wp-admin/?(.*)$ /" . $slug . "/$1 [R=301,L,QSA]\n"
+			. "</IfModule>\n"
+			. self::ADMIN_SLUG_END . "\n";
+	}
+
+	/**
+	 * Add or update the custom admin slug block in .htaccess. Removes the block if slug is empty.
+	 *
+	 * @param string $slug Custom slug, or empty to remove the block.
+	 * @return bool True on success, false if not writable or validation fails.
+	 */
+	public static function add_or_update_admin_slug_rules( $slug ) {
+		if ( ! self::is_writable() ) {
+			return false;
+		}
+		$content = self::get_content();
+		$pattern = '/\s*' . preg_quote( self::ADMIN_SLUG_BEGIN, '/' ) . '\b.*?' . preg_quote( self::ADMIN_SLUG_END, '/' ) . '\b/s';
+		$content = preg_replace( $pattern, '', $content );
+		$content = ltrim( $content, "\n" );
+		if ( '' !== $slug && preg_match( '/^[a-z0-9_-]+$/i', $slug ) ) {
+			$content = self::get_admin_slug_block( $slug ) . $content;
+		}
+		if ( ! self::validate_syntax( $content ) ) {
+			return false;
+		}
+		$result = file_put_contents( self::get_path(), $content, LOCK_EX );
+		return false !== $result;
+	}
+
+	/**
+	 * Remove the custom admin slug block from .htaccess.
+	 *
+	 * @return bool True on success.
+	 */
+	public static function remove_admin_slug_rules() {
+		return self::add_or_update_admin_slug_rules( '' );
+	}
+
+	/**
+	 * Replace Multisite block with standard WordPress (single-site) rewrite rules.
+	 *
+	 * @return bool True on success, false if not writable or validation fails.
+	 */
 	public static function restore_single_site_rules() {
 		if ( ! self::is_writable() ) {
 			return false;
