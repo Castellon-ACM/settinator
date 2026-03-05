@@ -49,6 +49,10 @@ class Setn_Admin_Slug {
 			add_filter( 'admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
 			add_filter( 'network_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
 			add_filter( 'user_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
+			add_filter( 'login_url', array( __CLASS__, 'filter_login_url' ), 10, 3 );
+			add_filter( 'logout_url', array( __CLASS__, 'filter_logout_url' ), 10, 2 );
+			add_filter( 'register_url', array( __CLASS__, 'filter_register_url' ), 10, 1 );
+			add_filter( 'lostpassword_url', array( __CLASS__, 'filter_lostpassword_url' ), 10, 2 );
 		}
 	}
 
@@ -63,23 +67,34 @@ class Setn_Admin_Slug {
 	}
 
 	/**
-	 * Validate and sanitize a candidate admin slug.
+	 * Sanitize slug: trim, lowercase, replace spaces and invalid chars with hyphens.
 	 *
 	 * @param string $slug Raw input.
+	 * @return string Slug with only [a-z0-9_-].
+	 */
+	public static function sanitize_slug( $slug ) {
+		$slug = is_string( $slug ) ? trim( $slug ) : '';
+		if ( '' === $slug ) {
+			return '';
+		}
+		$slug = strtolower( $slug );
+		$slug = preg_replace( '/[\s]+/', '-', $slug );
+		$slug = preg_replace( '/[^a-z0-9_-]+/', '-', $slug );
+		$slug = preg_replace( '/-+/', '-', $slug );
+		$slug = trim( $slug, '-' );
+		return $slug;
+	}
+
+	/**
+	 * Validate and sanitize a candidate admin slug.
+	 *
+	 * @param string $slug Raw input (e.g. "settinator login" becomes "settinator-login").
 	 * @return array{ ok: bool, slug: string, error: string } ok and slug if valid, error message otherwise.
 	 */
 	public static function validate_slug( $slug ) {
-		$slug = is_string( $slug ) ? trim( $slug ) : '';
+		$slug = self::sanitize_slug( $slug );
 		if ( '' === $slug ) {
 			return array( 'ok' => true, 'slug' => '', 'error' => '' );
-		}
-		$slug = strtolower( $slug );
-		if ( ! preg_match( '/^[a-z0-9_-]+$/', $slug ) ) {
-			return array(
-				'ok'    => false,
-				'slug'  => '',
-				'error' => __( 'Solo letras, números, guiones y guiones bajos.', 'settinator' ),
-			);
 		}
 		if ( in_array( $slug, self::RESERVED_SLUGS, true ) ) {
 			return array(
@@ -118,6 +133,86 @@ class Setn_Admin_Slug {
 		$url = str_replace( '/wp-admin/', '/' . $slug . '/', $url );
 		$url = str_replace( '/wp-admin', '/' . $slug, $url );
 		return $url;
+	}
+
+	/**
+	 * Replace wp-login.php with custom slug login URL.
+	 *
+	 * @param string $url    Login URL.
+	 * @param string $redirect Redirect URL.
+	 * @param bool   $force_reauth Force reauth.
+	 * @return string
+	 */
+	public static function filter_login_url( $url, $redirect = '', $force_reauth = false ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $url;
+		}
+		$login_path = '/' . $slug . '/login';
+		$new_url   = set_url_scheme( home_url( $login_path ), is_ssl() ? 'https' : 'http' );
+		if ( '' !== $redirect ) {
+			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
+		}
+		if ( $force_reauth ) {
+			$new_url = add_query_arg( 'reauth', '1', $new_url );
+		}
+		return $new_url;
+	}
+
+	/**
+	 * Replace wp-login.php?action=logout with custom slug login URL for logout.
+	 *
+	 * @param string $url    Logout URL.
+	 * @param string $redirect Redirect after logout.
+	 * @return string
+	 */
+	public static function filter_logout_url( $url, $redirect = '' ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $url;
+		}
+		$logout_path = '/' . $slug . '/login';
+		$new_url    = set_url_scheme( home_url( $logout_path ), is_ssl() ? 'https' : 'http' );
+		$new_url    = add_query_arg( 'action', 'logout', $new_url );
+		if ( '' !== $redirect ) {
+			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
+		}
+		return wp_nonce_url( $new_url, 'log-out' );
+	}
+
+	/**
+	 * Replace register URL with custom slug path.
+	 *
+	 * @param string $url Register URL.
+	 * @return string
+	 */
+	public static function filter_register_url( $url ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $url;
+		}
+		$path = '/' . $slug . '/login';
+		return add_query_arg( 'action', 'register', set_url_scheme( home_url( $path ), is_ssl() ? 'https' : 'http' ) );
+	}
+
+	/**
+	 * Replace lost password URL with custom slug path.
+	 *
+	 * @param string $url      Lost password URL.
+	 * @param string $redirect Redirect after reset.
+	 * @return string
+	 */
+	public static function filter_lostpassword_url( $url, $redirect = '' ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $url;
+		}
+		$path   = '/' . $slug . '/login';
+		$new_url = add_query_arg( 'action', 'lostpassword', set_url_scheme( home_url( $path ), is_ssl() ? 'https' : 'http' ) );
+		if ( '' !== $redirect ) {
+			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
+		}
+		return $new_url;
 	}
 }
 

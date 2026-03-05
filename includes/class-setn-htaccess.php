@@ -128,11 +128,6 @@ class Setn_Htaccess {
 	}
 
 	/**
-	 * Replace Multisite block with standard WordPress (single-site) rewrite rules.
-	 *
-	 * @return bool True on success, false if not writable or validation fails.
-	 */
-	/**
 	 * Markers for the custom admin slug block in .htaccess.
 	 *
 	 * @var string
@@ -141,9 +136,14 @@ class Setn_Htaccess {
 	const ADMIN_SLUG_END   = '# END Setn custom admin slug';
 
 	/**
-	 * Build the .htaccess block for custom admin slug: rewrite /slug to /wp-admin and redirect /wp-admin to /slug.
+	 * Build the .htaccess block for custom admin slug: rewrite /slug and /slug/login to wp-admin/wp-login, redirect direct access.
 	 *
-	 * @param string $slug Custom slug (e.g. mi-panel). Must be safe for regex.
+	 * - /slug/login -> wp-login.php (login form)
+	 * - /slug and /slug/* -> wp-admin
+	 * - wp-login.php -> redirect 301 to /slug/login
+	 * - wp-admin -> redirect 301 to /slug
+	 *
+	 * @param string $slug Custom slug (e.g. mi-panel). Safe for regex.
 	 * @return string
 	 */
 	public static function get_admin_slug_block( $slug ) {
@@ -151,8 +151,15 @@ class Setn_Htaccess {
 		return "\n" . self::ADMIN_SLUG_BEGIN . "\n"
 			. "<IfModule mod_rewrite.c>\n"
 			. "RewriteEngine On\n"
+			. "RewriteBase /\n"
+			. "# Login form at /" . $slug . "/login\n"
+			. "RewriteRule ^" . $slug_quoted . "/login/?$ /wp-login.php [L,QSA]\n"
+			. "# Admin at /" . $slug . "\n"
 			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-admin/ [L,QSA]\n"
 			. "RewriteRule ^" . $slug_quoted . "/(.*)$ /wp-admin/$1 [L,QSA]\n"
+			. "# Block direct access: redirect to custom path\n"
+			. "RewriteCond %{REQUEST_URI} ^/wp-login\\.php\n"
+			. "RewriteRule ^wp-login\\.php$ /" . $slug . "/login [R=301,L,QSA]\n"
 			. "RewriteCond %{REQUEST_URI} ^/wp-admin\n"
 			. "RewriteRule ^wp-admin/?(.*)$ /" . $slug . "/$1 [R=301,L,QSA]\n"
 			. "</IfModule>\n"
@@ -173,7 +180,7 @@ class Setn_Htaccess {
 		$pattern = '/\s*' . preg_quote( self::ADMIN_SLUG_BEGIN, '/' ) . '\b.*?' . preg_quote( self::ADMIN_SLUG_END, '/' ) . '\b/s';
 		$content = preg_replace( $pattern, '', $content );
 		$content = ltrim( $content, "\n" );
-		if ( '' !== $slug && preg_match( '/^[a-z0-9_-]+$/i', $slug ) ) {
+		if ( '' !== $slug && is_string( $slug ) && preg_match( '/^[a-z0-9_-]+$/i', $slug ) ) {
 			$content = self::get_admin_slug_block( $slug ) . $content;
 		}
 		if ( ! self::validate_syntax( $content ) ) {
