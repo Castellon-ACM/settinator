@@ -66,6 +66,11 @@ class Setn_Admin {
 					</p>
 				<?php endif; ?>
 			</form>
+			<p class="description" style="margin-top: 16px; padding: 10px 12px; background: #f0f0f1; border-left: 4px solid #2271b1;">
+				<strong><?php esc_html_e( 'Acceso de emergencia:', 'settinator' ); ?></strong>
+				<?php esc_html_e( 'Si no puedes entrar con la nueva ruta, usa siempre esta URL para abrir Settinator y cambiar la opción:', 'settinator' ); ?>
+				<code style="display: block; margin-top: 6px; word-break: break-all;"><?php echo esc_html( home_url( '/wp-admin/admin.php?page=settinator&tab=admin' ) ); ?></code>
+			</p>
 		</div>
 		<?php
 	}

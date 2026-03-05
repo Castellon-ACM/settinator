@@ -157,10 +157,11 @@ class Setn_Htaccess {
 			. "# Admin at /" . $slug . "\n"
 			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-admin/ [L,QSA]\n"
 			. "RewriteRule ^" . $slug_quoted . "/(.*)$ /wp-admin/$1 [L,QSA]\n"
-			. "# Block direct access: redirect to custom path\n"
+			. "# Block direct access: redirect to custom path (except Settinator settings so you can always change the slug)\n"
 			. "RewriteCond %{REQUEST_URI} ^/wp-login\\.php\n"
 			. "RewriteRule ^wp-login\\.php$ /" . $slug . "/login [R=301,L,QSA]\n"
 			. "RewriteCond %{REQUEST_URI} ^/wp-admin\n"
+			. "RewriteCond %{QUERY_STRING} !page=settinator\n"
 			. "RewriteRule ^wp-admin/?(.*)$ /" . $slug . "/$1 [R=301,L,QSA]\n"
 			. "</IfModule>\n"
 			. self::ADMIN_SLUG_END . "\n";

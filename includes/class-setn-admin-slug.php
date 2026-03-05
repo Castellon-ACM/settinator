@@ -40,12 +40,25 @@ class Setn_Admin_Slug {
 
 	/**
 	 * Register filters and hooks. Called on plugins_loaded.
+	 * When the request is for /slug/admin.php but landed on the front (e.g. nginx), redirect to real wp-admin so the admin loads.
 	 *
 	 * @return void
 	 */
 	public static function init() {
 		$slug = self::get_slug();
 		if ( '' !== $slug ) {
+			// If we're not in wp-admin but the URL path is /slug/admin.php, the server sent us to index.php (e.g. nginx). Redirect to real admin URL so the admin loads and you can always edit the slug.
+			if ( ! ( defined( 'WP_ADMIN' ) && WP_ADMIN ) ) {
+				$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+				$path = parse_url( $uri, PHP_URL_PATH );
+				$path = is_string( $path ) ? $path : '';
+				if ( preg_match( '#^/' . preg_quote( $slug, '#' ) . '/admin\.php$#', $path ) ) {
+					$query = parse_url( $uri, PHP_URL_QUERY );
+					$to    = home_url( '/wp-admin/admin.php' . ( $query ? '?' . $query : '' ) );
+					wp_safe_redirect( $to, 302 );
+					exit;
+				}
+			}
 			add_filter( 'admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
 			add_filter( 'network_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
 			add_filter( 'user_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
