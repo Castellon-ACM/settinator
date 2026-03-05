@@ -140,8 +140,7 @@ class Setn_Htaccess {
 	 *
 	 * - /slug/ and /slug -> wp-login.php (login form)
 	 * - /slug/admin.php and /slug/* -> wp-admin
-	 * - wp-login.php -> redirect 301 to /slug/
-	 * - wp-admin -> redirect 301 to /slug/
+	 * - wp-login.php and wp-admin -> rewrite to index.php?setn_block=1 so PHP returns 404 (except ?page=settinator for emergency access)
 	 *
 	 * @param string $slug Custom slug (e.g. mi-panel). Safe for regex.
 	 * @return string
@@ -156,12 +155,10 @@ class Setn_Htaccess {
 			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-login.php [L,QSA]\n"
 			. "# Admin at /" . $slug . "/admin.php and below\n"
 			. "RewriteRule ^" . $slug_quoted . "/(.*)$ /wp-admin/$1 [L,QSA]\n"
-			. "# Block direct access: redirect to custom path (except Settinator settings so you can always change the slug)\n"
-			. "RewriteCond %{REQUEST_URI} ^/wp-login\\.php\n"
-			. "RewriteRule ^wp-login\\.php$ /" . $slug . "/ [R=301,L,QSA]\n"
-			. "RewriteCond %{REQUEST_URI} ^/wp-admin\n"
+			. "# Block direct access to wp-admin only: send to index so plugin returns 404 (except ?page=settinator)\n"
+			. "RewriteCond %{REQUEST_URI} ^/wp-admin(/.*)?$\n"
 			. "RewriteCond %{QUERY_STRING} !page=settinator\n"
-			. "RewriteRule ^wp-admin/?(.*)$ /" . $slug . "/$1 [R=301,L,QSA]\n"
+			. "RewriteRule ^wp-admin(/.*)?$ /index.php?setn_block=1 [L,QSA]\n"
 			. "</IfModule>\n"
 			. self::ADMIN_SLUG_END . "\n";
 	}

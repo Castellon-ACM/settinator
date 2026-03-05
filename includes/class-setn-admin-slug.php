@@ -54,6 +54,22 @@ class Setn_Admin_Slug {
 				$path = is_string( $path ) ? $path : '';
 				$path = trim( $path, '/' );
 				$path = $path === '' ? '/' : '/' . $path;
+				$query_str = parse_url( $uri, PHP_URL_QUERY );
+				$is_settinator_emergency = false;
+				if ( is_string( $query_str ) && $query_str !== '' ) {
+					parse_str( $query_str, $q );
+					$is_settinator_emergency = isset( $q['page'] ) && $q['page'] === 'settinator';
+				}
+				// .htaccess rewrites wp-admin to index.php?setn_block=1; or we're on nginx and path is direct. Return 404 only for wp-admin.
+				if ( isset( $_GET['setn_block'] ) ) {
+					status_header( 404 );
+					wp_die( esc_html__( 'No se ha encontrado la URL solicitada.', 'settinator' ), '', array( 'response' => 404 ) );
+				}
+				// Direct access to wp-admin (e.g. nginx) -> 404. Exception: ?page=settinator for emergency access. wp-login stays allowed.
+				if ( strpos( $path, '/wp-admin' ) === 0 && ! $is_settinator_emergency ) {
+					status_header( 404 );
+					wp_die( esc_html__( 'No se ha encontrado la URL solicitada.', 'settinator' ), '', array( 'response' => 404 ) );
+				}
 				// /slug/admin.php and other *.php -> redirect 307 to wp-admin so the request is handled normally (require from here triggers upgrade screen). With Apache + .htaccess the URL stays /slug/.
 				if ( preg_match( '#^/' . preg_quote( $slug, '#' ) . '/([a-zA-Z0-9_.-]+\.php)(\?.*)?$#', $path, $m ) ) {
 					$query = parse_url( $uri, PHP_URL_QUERY );
@@ -97,7 +113,8 @@ class Setn_Admin_Slug {
 	 * @return string
 	 */
 	public static function filter_login_message_slug_saved( $message ) {
-		if ( isset( $_GET['setn_slug_saved'] ) && '1' === $_GET['setn_slug_saved'] ) {
+		if ( get_transient( 'setn_slug_saved_notice' ) ) {
+			delete_transient( 'setn_slug_saved_notice' );
 			$message .= '<p class="message" style="border-left-color: #00a32a; margin-bottom: 1em;">' . esc_html__( 'Ruta del escritorio guardada. Entra con tu usuario.', 'settinator' ) . '</p>';
 		}
 		return $message;

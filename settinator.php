@@ -225,14 +225,14 @@ function setn_maybe_save_admin_slug() {
 		);
 		exit;
 	}
-	// Log out and send user to the (new) login URL so they access with the new path.
+	// Log out and send user to the (new) login URL with a clean URL (no query string).
 	wp_logout();
+	set_transient( 'setn_slug_saved_notice', '1', 60 );
 	if ( '' !== $valid['slug'] ) {
 		$login_url = home_url( '/' . $valid['slug'] . '/' );
 	} else {
 		$login_url = home_url( '/wp-login.php' );
 	}
-	$login_url = add_query_arg( 'setn_slug_saved', '1', $login_url );
 	wp_safe_redirect( $login_url );
 	exit;
 }
