@@ -1,0 +1,124 @@
+<?php
+/**
+ * Custom admin URL (hide /wp-admin/ behind a configurable slug).
+ *
+ * Handles option, validation, .htaccess rules and admin_url filters.
+ *
+ * @package Settinator
+ * @author Castellón
+ * @copyright 2026 Castellón
+ * @version 1.0.2
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Class Setn_Admin_Slug
+ */
+class Setn_Admin_Slug {
+
+	/**
+	 * Option name for the custom admin URL slug.
+	 *
+	 * @var string
+	 */
+	const OPTION_NAME = 'setn_admin_slug';
+
+	/**
+	 * Nonce action for the admin slug form.
+	 *
+	 * @var string
+	 */
+	const NONCE_ACTION = 'setn_save_admin_slug';
+
+	/**
+	 * Reserved slugs that cannot be used as custom admin path.
+	 *
+	 * @var string[]
+	 */
+	const RESERVED_SLUGS = array( 'wp-admin', 'wp-login', 'wp-login.php', 'wp-content', 'wp-includes', 'admin', 'feed', 'index.php', 'settinator' );
+
+	/**
+	 * Register filters and hooks. Called on plugins_loaded.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		$slug = self::get_slug();
+		if ( '' !== $slug ) {
+			add_filter( 'admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
+			add_filter( 'network_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
+			add_filter( 'user_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
+		}
+	}
+
+	/**
+	 * Get the current custom admin slug (empty string = use default wp-admin).
+	 *
+	 * @return string
+	 */
+	public static function get_slug() {
+		$slug = get_option( self::OPTION_NAME, '' );
+		return is_string( $slug ) ? $slug : '';
+	}
+
+	/**
+	 * Validate and sanitize a candidate admin slug.
+	 *
+	 * @param string $slug Raw input.
+	 * @return array{ ok: bool, slug: string, error: string } ok and slug if valid, error message otherwise.
+	 */
+	public static function validate_slug( $slug ) {
+		$slug = is_string( $slug ) ? trim( $slug ) : '';
+		if ( '' === $slug ) {
+			return array( 'ok' => true, 'slug' => '', 'error' => '' );
+		}
+		$slug = strtolower( $slug );
+		if ( ! preg_match( '/^[a-z0-9_-]+$/', $slug ) ) {
+			return array(
+				'ok'    => false,
+				'slug'  => '',
+				'error' => __( 'Solo letras, números, guiones y guiones bajos.', 'settinator' ),
+			);
+		}
+		if ( in_array( $slug, self::RESERVED_SLUGS, true ) ) {
+			return array(
+				'ok'    => false,
+				'slug'  => '',
+				'error' => __( 'Ese slug está reservado. Elige otro.', 'settinator' ),
+			);
+		}
+		return array( 'ok' => true, 'slug' => $slug, 'error' => '' );
+	}
+
+	/**
+	 * Save slug: update option and .htaccess rules.
+	 *
+	 * @param string $slug Sanitized slug, or empty to revert to wp-admin.
+	 * @return bool True on success, false if .htaccess could not be written.
+	 */
+	public static function save_slug( $slug ) {
+		update_option( self::OPTION_NAME, is_string( $slug ) ? $slug : '' );
+		return Setn_Htaccess::add_or_update_admin_slug_rules( $slug );
+	}
+
+	/**
+	 * Replace /wp-admin/ with custom slug in admin URLs.
+	 *
+	 * @param string   $url     Full URL.
+	 * @param string   $path    Path (e.g. admin.php).
+	 * @param int|null $blog_id Blog ID (unused).
+	 * @return string
+	 */
+	public static function filter_admin_url( $url, $path, $blog_id = null ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $url;
+		}
+		$url = str_replace( '/wp-admin/', '/' . $slug . '/', $url );
+		$url = str_replace( '/wp-admin', '/' . $slug, $url );
+		return $url;
+	}
+}
+
+add_action( 'plugins_loaded', array( 'Setn_Admin_Slug', 'init' ), 5 );
