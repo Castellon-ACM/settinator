@@ -100,9 +100,13 @@ class Setn_Admin_Slug {
 			add_filter( 'user_admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
 			add_filter( 'login_url', array( __CLASS__, 'filter_login_url' ), 10, 3 );
 			add_filter( 'logout_url', array( __CLASS__, 'filter_logout_url' ), 10, 2 );
+			add_filter( 'logout_redirect', array( __CLASS__, 'filter_logout_redirect' ), 10, 3 );
 			add_filter( 'register_url', array( __CLASS__, 'filter_register_url' ), 10, 1 );
 			add_filter( 'lostpassword_url', array( __CLASS__, 'filter_lostpassword_url' ), 10, 2 );
 			add_filter( 'login_message', array( __CLASS__, 'filter_login_message_slug_saved' ), 10, 1 );
+			add_action( 'init', array( __CLASS__, 'block_wp_admin_when_logged_out' ), 1 );
+			add_filter( 'wp_redirect', array( __CLASS__, 'filter_redirect_away_from_wp_admin' ), 10, 2 );
+			add_action( 'login_form_logout', array( __CLASS__, 'force_logout_redirect_to_login' ), 1 );
 		}
 	}
 
@@ -225,9 +229,10 @@ class Setn_Admin_Slug {
 
 	/**
 	 * Replace wp-login.php?action=logout with custom slug login URL for logout.
+	 * After logout, redirect always to the custom login form so user does not land on blocked wp-admin.
 	 *
-	 * @param string $url    Logout URL.
-	 * @param string $redirect Redirect after logout.
+	 * @param string $url     Logout URL.
+	 * @param string $redirect Redirect after logout (ignored; we force login form).
 	 * @return string
 	 */
 	public static function filter_logout_url( $url, $redirect = '' ) {
@@ -235,13 +240,88 @@ class Setn_Admin_Slug {
 		if ( '' === $slug ) {
 			return $url;
 		}
-		$logout_path = '/' . $slug . '/';
-		$new_url    = set_url_scheme( home_url( $logout_path ), is_ssl() ? 'https' : 'http' );
-		$new_url    = add_query_arg( 'action', 'logout', $new_url );
-		if ( '' !== $redirect ) {
-			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
-		}
+		$logout_path   = '/' . $slug . '/';
+		$new_url       = set_url_scheme( home_url( $logout_path ), is_ssl() ? 'https' : 'http' );
+		$new_url       = add_query_arg( 'action', 'logout', $new_url );
+		$login_form_url = set_url_scheme( home_url( $logout_path ), is_ssl() ? 'https' : 'http' );
+		$new_url       = add_query_arg( 'redirect_to', urlencode( $login_form_url ), $new_url );
 		return wp_nonce_url( $new_url, 'log-out' );
+	}
+
+	/**
+	 * Before logout is processed, force redirect_to in the request to our login URL.
+	 * So after wp_logout() the redirect always goes to the custom login page.
+	 */
+	public static function force_logout_redirect_to_login() {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return;
+		}
+		$login_url = set_url_scheme( home_url( '/' . $slug . '/' ), is_ssl() ? 'https' : 'http' );
+		$_REQUEST['redirect_to'] = $login_url;
+		$_GET['redirect_to']     = $login_url;
+	}
+
+	/**
+	 * Force redirect after logout to the custom login form (never to wp-admin).
+	 *
+	 * @param string $redirect_to           Redirect URL after logout.
+	 * @param string $requested_redirect_to Requested redirect from query.
+	 * @param WP_User $user                 User that just logged out.
+	 * @return string
+	 */
+	public static function filter_logout_redirect( $redirect_to, $requested_redirect_to, $user ) {
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $redirect_to;
+		}
+		return set_url_scheme( home_url( '/' . $slug . '/' ), is_ssl() ? 'https' : 'http' );
+	}
+
+	/**
+	 * When not logged in and request is wp-admin, show 404 instead of redirecting to login.
+	 * Must run on init (priority 1) because auth_redirect() in wp-admin/admin.php runs before admin_init.
+	 */
+	public static function block_wp_admin_when_logged_out() {
+		if ( ! ( defined( 'WP_ADMIN' ) && WP_ADMIN ) ) {
+			return;
+		}
+		if ( is_user_logged_in() ) {
+			return;
+		}
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return;
+		}
+		// Allow emergency access to Settinator.
+		if ( isset( $_GET['page'] ) && 'settinator' === $_GET['page'] ) {
+			return;
+		}
+		status_header( 404 );
+		wp_die( esc_html__( 'No se ha encontrado la URL solicitada.', 'settinator' ), '', array( 'response' => 404 ) );
+	}
+
+	/**
+	 * If a redirect would send a logged-out user to wp-admin (e.g. after logout), send to the custom login URL instead.
+	 *
+	 * @param string $location Redirect URL.
+	 * @param int    $status   Redirect status.
+	 * @return string
+	 */
+	public static function filter_redirect_away_from_wp_admin( $location, $status ) {
+		if ( is_user_logged_in() ) {
+			return $location;
+		}
+		$slug = self::get_slug();
+		if ( '' === $slug ) {
+			return $location;
+		}
+		$parsed = wp_parse_url( $location );
+		$path   = isset( $parsed['path'] ) ? $parsed['path'] : '';
+		if ( strpos( $path, '/wp-admin' ) !== false ) {
+			return set_url_scheme( home_url( '/' . $slug . '/' ), is_ssl() ? 'https' : 'http' );
+		}
+		return $location;
 	}
 
 	/**
