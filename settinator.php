@@ -225,16 +225,15 @@ function setn_maybe_save_admin_slug() {
 		);
 		exit;
 	}
-	wp_safe_redirect(
-		add_query_arg(
-			array(
-				'page'          => Setn_Settings::PAGE_SLUG,
-				'tab'           => Setn_Admin::TAB_SLUG,
-				'setn_ok_admin' => '1',
-			),
-			admin_url( 'admin.php' )
-		)
-	);
+	// Log out and send user to the (new) login URL so they access with the new path.
+	wp_logout();
+	if ( '' !== $valid['slug'] ) {
+		$login_url = home_url( '/' . $valid['slug'] . '/' );
+	} else {
+		$login_url = home_url( '/wp-login.php' );
+	}
+	$login_url = add_query_arg( 'setn_slug_saved', '1', $login_url );
+	wp_safe_redirect( $login_url );
 	exit;
 }
 

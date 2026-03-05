@@ -138,10 +138,10 @@ class Setn_Htaccess {
 	/**
 	 * Build the .htaccess block for custom admin slug: rewrite /slug and /slug/login to wp-admin/wp-login, redirect direct access.
 	 *
-	 * - /slug/login -> wp-login.php (login form)
-	 * - /slug and /slug/* -> wp-admin
-	 * - wp-login.php -> redirect 301 to /slug/login
-	 * - wp-admin -> redirect 301 to /slug
+	 * - /slug/ and /slug -> wp-login.php (login form)
+	 * - /slug/admin.php and /slug/* -> wp-admin
+	 * - wp-login.php -> redirect 301 to /slug/
+	 * - wp-admin -> redirect 301 to /slug/
 	 *
 	 * @param string $slug Custom slug (e.g. mi-panel). Safe for regex.
 	 * @return string
@@ -152,14 +152,13 @@ class Setn_Htaccess {
 			. "<IfModule mod_rewrite.c>\n"
 			. "RewriteEngine On\n"
 			. "RewriteBase /\n"
-			. "# Login form at /" . $slug . "/login\n"
-			. "RewriteRule ^" . $slug_quoted . "/login/?$ /wp-login.php [L,QSA]\n"
-			. "# Admin at /" . $slug . "\n"
-			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-admin/ [L,QSA]\n"
+			. "# Login form at /" . $slug . "/\n"
+			. "RewriteRule ^" . $slug_quoted . "/?$ /wp-login.php [L,QSA]\n"
+			. "# Admin at /" . $slug . "/admin.php and below\n"
 			. "RewriteRule ^" . $slug_quoted . "/(.*)$ /wp-admin/$1 [L,QSA]\n"
 			. "# Block direct access: redirect to custom path (except Settinator settings so you can always change the slug)\n"
 			. "RewriteCond %{REQUEST_URI} ^/wp-login\\.php\n"
-			. "RewriteRule ^wp-login\\.php$ /" . $slug . "/login [R=301,L,QSA]\n"
+			. "RewriteRule ^wp-login\\.php$ /" . $slug . "/ [R=301,L,QSA]\n"
 			. "RewriteCond %{REQUEST_URI} ^/wp-admin\n"
 			. "RewriteCond %{QUERY_STRING} !page=settinator\n"
 			. "RewriteRule ^wp-admin/?(.*)$ /" . $slug . "/$1 [R=301,L,QSA]\n"

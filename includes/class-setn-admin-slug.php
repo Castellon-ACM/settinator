@@ -47,15 +47,35 @@ class Setn_Admin_Slug {
 	public static function init() {
 		$slug = self::get_slug();
 		if ( '' !== $slug ) {
-			// If we're not in wp-admin but the URL path is /slug/admin.php, the server sent us to index.php (e.g. nginx). Redirect to real admin URL so the admin loads and you can always edit the slug.
+			// When not in wp-admin, handle custom slug URLs (server didn't rewrite .htaccess, e.g. nginx).
 			if ( ! ( defined( 'WP_ADMIN' ) && WP_ADMIN ) ) {
 				$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 				$path = parse_url( $uri, PHP_URL_PATH );
 				$path = is_string( $path ) ? $path : '';
+				$path = trim( $path, '/' );
+				$path = $path === '' ? '/' : '/' . $path;
+				// /slug/admin.php -> redirect 307 to wp-admin so the admin (and form save) loads.
 				if ( preg_match( '#^/' . preg_quote( $slug, '#' ) . '/admin\.php$#', $path ) ) {
 					$query = parse_url( $uri, PHP_URL_QUERY );
 					$to    = home_url( '/wp-admin/admin.php' . ( $query ? '?' . $query : '' ) );
-					wp_safe_redirect( $to, 302 );
+					wp_safe_redirect( $to, 307 );
+					exit;
+				}
+				// /slug or /slug/ or /slug/login -> show login form when not logged in; when logged in, /slug/ redirects to wp-admin.
+				$is_slug_root = ( $path === '/' . $slug || $path === '/' . $slug . '/' );
+				$is_slug_login = (bool) preg_match( '#^/' . preg_quote( $slug, '#' ) . '/login/?$#', $path );
+				if ( $is_slug_root || $is_slug_login ) {
+					if ( $is_slug_root && is_user_logged_in() ) {
+						wp_safe_redirect( home_url( '/wp-admin/' ) );
+						exit;
+					}
+					// Show login form: set vars wp-login.php expects (avoids undefined notices) and constants.
+					$user_login = '';
+					$error      = '';
+					if ( function_exists( 'wp_functionality_constants' ) ) {
+						wp_functionality_constants();
+					}
+					require_once ABSPATH . 'wp-login.php';
 					exit;
 				}
 			}
@@ -66,7 +86,21 @@ class Setn_Admin_Slug {
 			add_filter( 'logout_url', array( __CLASS__, 'filter_logout_url' ), 10, 2 );
 			add_filter( 'register_url', array( __CLASS__, 'filter_register_url' ), 10, 1 );
 			add_filter( 'lostpassword_url', array( __CLASS__, 'filter_lostpassword_url' ), 10, 2 );
+			add_filter( 'login_message', array( __CLASS__, 'filter_login_message_slug_saved' ), 10, 1 );
 		}
+	}
+
+	/**
+	 * Show a notice on the login form when redirected after saving the new slug.
+	 *
+	 * @param string $message Existing login message.
+	 * @return string
+	 */
+	public static function filter_login_message_slug_saved( $message ) {
+		if ( isset( $_GET['setn_slug_saved'] ) && '1' === $_GET['setn_slug_saved'] ) {
+			$message .= '<p class="message" style="border-left-color: #00a32a; margin-bottom: 1em;">' . esc_html__( 'Ruta del escritorio guardada. Entra con tu usuario.', 'settinator' ) . '</p>';
+		}
+		return $message;
 	}
 
 	/**
@@ -161,7 +195,7 @@ class Setn_Admin_Slug {
 		if ( '' === $slug ) {
 			return $url;
 		}
-		$login_path = '/' . $slug . '/login';
+		$login_path = '/' . $slug . '/';
 		$new_url   = set_url_scheme( home_url( $login_path ), is_ssl() ? 'https' : 'http' );
 		if ( '' !== $redirect ) {
 			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
@@ -184,7 +218,7 @@ class Setn_Admin_Slug {
 		if ( '' === $slug ) {
 			return $url;
 		}
-		$logout_path = '/' . $slug . '/login';
+		$logout_path = '/' . $slug . '/';
 		$new_url    = set_url_scheme( home_url( $logout_path ), is_ssl() ? 'https' : 'http' );
 		$new_url    = add_query_arg( 'action', 'logout', $new_url );
 		if ( '' !== $redirect ) {
@@ -204,7 +238,7 @@ class Setn_Admin_Slug {
 		if ( '' === $slug ) {
 			return $url;
 		}
-		$path = '/' . $slug . '/login';
+		$path = '/' . $slug . '/';
 		return add_query_arg( 'action', 'register', set_url_scheme( home_url( $path ), is_ssl() ? 'https' : 'http' ) );
 	}
 
@@ -220,7 +254,7 @@ class Setn_Admin_Slug {
 		if ( '' === $slug ) {
 			return $url;
 		}
-		$path   = '/' . $slug . '/login';
+		$path   = '/' . $slug . '/';
 		$new_url = add_query_arg( 'action', 'lostpassword', set_url_scheme( home_url( $path ), is_ssl() ? 'https' : 'http' ) );
 		if ( '' !== $redirect ) {
 			$new_url = add_query_arg( 'redirect_to', urlencode( $redirect ), $new_url );
