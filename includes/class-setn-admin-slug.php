@@ -54,19 +54,19 @@ class Setn_Admin_Slug {
 				$path = is_string( $path ) ? $path : '';
 				$path = trim( $path, '/' );
 				$path = $path === '' ? '/' : '/' . $path;
-				// /slug/admin.php -> redirect 307 to wp-admin so the admin (and form save) loads.
-				if ( preg_match( '#^/' . preg_quote( $slug, '#' ) . '/admin\.php$#', $path ) ) {
+				// /slug/admin.php and other *.php -> redirect 307 to wp-admin so the request is handled normally (require from here triggers upgrade screen). With Apache + .htaccess the URL stays /slug/.
+				if ( preg_match( '#^/' . preg_quote( $slug, '#' ) . '/([a-zA-Z0-9_.-]+\.php)(\?.*)?$#', $path, $m ) ) {
 					$query = parse_url( $uri, PHP_URL_QUERY );
-					$to    = home_url( '/wp-admin/admin.php' . ( $query ? '?' . $query : '' ) );
+					$to    = home_url( '/wp-admin/' . $m[1] . ( $query ? '?' . $query : '' ) );
 					wp_safe_redirect( $to, 307 );
 					exit;
 				}
-				// /slug or /slug/ or /slug/login -> show login form when not logged in; when logged in, /slug/ redirects to wp-admin.
-				$is_slug_root = ( $path === '/' . $slug || $path === '/' . $slug . '/' );
+				// /slug or /slug/ or /slug/login -> show login form when not logged in; when logged in, /slug/ redirects to /slug/admin.php.
+				$is_slug_root  = ( $path === '/' . $slug || $path === '/' . $slug . '/' );
 				$is_slug_login = (bool) preg_match( '#^/' . preg_quote( $slug, '#' ) . '/login/?$#', $path );
 				if ( $is_slug_root || $is_slug_login ) {
 					if ( $is_slug_root && is_user_logged_in() ) {
-						wp_safe_redirect( home_url( '/wp-admin/' ) );
+						wp_safe_redirect( home_url( '/' . $slug . '/admin.php' ) );
 						exit;
 					}
 					// Show login form: set vars wp-login.php expects (avoids undefined notices) and constants.
